@@ -28,7 +28,9 @@
 #include "wm_test_network.h"
 #include "wm_test_log.h"
 
-#define WM_TEST_TRIAL 3
+#define WT_TARGET_ADDR_SOFTAP CONFIG_LWIP_DHCPS_SERVER_IP
+#define WT_TARGET_ADDR "192.168.47.2"
+#define WM_TEST_TRIAL 20
 #define TAG "[WT]"
 //if semaphore operation failed then it'll try it again 10ms later
 #define WT_SEM_TRY_WAIT_US 10000
@@ -177,7 +179,7 @@ static int _run_procedure(void)
 	/*  send data */
 	WT_LOG(TAG, "send dummy data size %d", WT_DATA_SIZE);
 
-	nres = wt_send_dummy(WT_DATA_SIZE);
+	nres = wt_send_dummy(WT_DATA_SIZE, WT_TARGET_ADDR);
 	if (nres < 0) {
 		WT_LOGE(TAG, "send dummy data fail %d\n", nres);
 		return -1;
@@ -233,7 +235,7 @@ static int _run_procedure(void)
 	/*  send data */
 	WT_LOG(TAG, "send dummy data %d", WT_DATA_SIZE);
 
-	nres = wt_send_dummy(WT_DATA_SIZE);
+	nres = wt_send_dummy(WT_DATA_SIZE, WT_TARGET_ADDR_SOFTAP);
 	if (nres < 0) {
 		WT_LOGE(TAG, "send dummy data fail %d\n", nres);
 		return -1;

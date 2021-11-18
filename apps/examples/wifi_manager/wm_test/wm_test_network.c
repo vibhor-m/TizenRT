@@ -26,7 +26,7 @@
 #include "wm_test_log.h"
 #include "wm_test_network.h"
 
-#define WT_TARGET_ADDR CONFIG_LWIP_DHCPS_SERVER_IP
+//#define WT_TARGET_ADDR CONFIG_LWIP_DHCPS_SERVER_IP
 #define TAG "[NET]"
 #define WT_BUF_SIZE 512
 
@@ -61,12 +61,15 @@ static int _recv_data(int fd, int size)
 
 	while (remain > 0) {
 		int read_size = remain > WT_BUF_SIZE ? WT_BUF_SIZE : remain;
+		WT_LOG(TAG, "_recv_data before recv, size %d", read_size);
 		int nbytes = recv(fd, buf, read_size, 0);
+		WT_LOG(TAG, "recv return value %d", nbytes);
 		if (nbytes == 0) {
 			WT_LOGE(TAG, "connection closed\n");
 			return -1;
 		} else if (nbytes < 0) {
 			if (errno == EWOULDBLOCK) {
+				WT_LOGE(TAG, "EWOULDBLOCK\n");
 				continue;
 			} else {
 				WT_LOGE(TAG, "connection error %d\n", errno);
@@ -157,7 +160,7 @@ int wt_receive_dummy(int size)
 	return 0;
 }
 
-int wt_send_dummy(int size)
+int wt_send_dummy(int size, char* server_ip)
 {
 	struct sockaddr_in target_addr;
 	int ret = 0;
@@ -171,12 +174,12 @@ int wt_send_dummy(int size)
 		return -1;
 	}
 
-	WT_LOG(TAG, "connect to %s:%d", WT_TARGET_ADDR, WT_NET_PORT);
+	WT_LOG(TAG, "connect to %s:%d", server_ip, WT_NET_PORT);
 
 	/* Connect the socket to the server */
 	target_addr.sin_family = AF_INET;
 	target_addr.sin_port = HTONS(WT_NET_PORT);
-	inet_pton(AF_INET, WT_TARGET_ADDR, &(target_addr.sin_addr));
+	inet_pton(AF_INET, server_ip, &(target_addr.sin_addr));
 
 	int addrlen = sizeof(struct sockaddr_in);
 	if (connect(sockfd, (struct sockaddr *)&target_addr, addrlen) < 0) {
@@ -199,6 +202,8 @@ int wt_send_dummy(int size)
 		WT_LOGE(TAG, "receive fail size %d ret %d code %d\n", WT_ACK_SIZE, ret, errno);
 		return -1;
 	}
+
+	WT_LOG(TAG, "_recv_data done, before close, ret %d", ret);
 	close(sockfd);
 
 	WT_LOG(TAG, "terminate sending");

@@ -59,7 +59,7 @@ typedef int (*parser_func)(struct wt_options *opt, int argc, char *argv[]);
 		WT_LOG(TAG, "wait func signal"); \
 		sem_wait(&g_wm_func_sem);        \
 	} while (0)
-#define WT_STRESS_MAX_IDX 4
+#define WT_STRESS_MAX_IDX 5
 #define WT_STRESS_MIN_IDX 1
 
 typedef enum {

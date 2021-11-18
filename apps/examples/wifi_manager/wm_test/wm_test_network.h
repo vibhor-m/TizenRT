@@ -21,4 +21,4 @@
 #define WT_DATA_SIZE 1024
 #define WT_NET_PORT 9098
 int wt_receive_dummy(int size);
-int wt_send_dummy(int size);
+int wt_send_dummy(int size, char* server_ip);

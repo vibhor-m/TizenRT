@@ -28,7 +28,7 @@
 #include "wm_test_utils.h"
 #include "wm_test_log.h"
 
-#define WM_TEST_TRIAL 3
+#define WM_TEST_TRIAL 20
 #define TAG "[WT]"
 static char *WM_AP_SSID;
 static char *WM_AP_PASSWORD;
