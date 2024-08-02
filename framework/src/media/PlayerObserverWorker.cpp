@@ -30,6 +30,7 @@ PlayerObserverWorker::PlayerObserverWorker()
 {
 	mThreadName = "PlayerObserverWorker";
 	mStacksize = CONFIG_MEDIA_PLAYER_OBSERVER_STACKSIZE;
+	mPriority = 150;
 }
 
 PlayerObserverWorker::~PlayerObserverWorker()

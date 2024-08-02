@@ -26,8 +26,8 @@
 
 namespace media {
 
-#define LOG_STATE_INFO(state) medvdbg("state at %s[line : %d] : %s\n", __func__, __LINE__, player_state_names[(state)])
-#define LOG_STATE_DEBUG(state) meddbg("state at %s[line : %d] : %s\n", __func__, __LINE__, player_state_names[(state)])
+#define LOG_STATE_INFO(state) printf("state at %s[line : %d] : %s\n", __func__, __LINE__, player_state_names[(state)])
+#define LOG_STATE_DEBUG(state) printf("state at %s[line : %d] : %s\n", __func__, __LINE__, player_state_names[(state)])
 
 MediaPlayerImpl::MediaPlayerImpl(MediaPlayer &player) : mPlayer(player)
 {
@@ -40,15 +40,19 @@ MediaPlayerImpl::MediaPlayerImpl(MediaPlayer &player) : mPlayer(player)
 player_result_t MediaPlayerImpl::create()
 {
 	player_result_t ret = PLAYER_OK;
-
+	struct sched_param sparam;
+	sched_getparam(getpid(), &sparam);
+	printf("vibhor MediaPlayer create %d\n", sparam.sched_priority);
 	std::unique_lock<std::mutex> lock(mCmdMtx);
-	medvdbg("MediaPlayer create\n");
+	printf("vibhor MediaPlayer create\n");
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 	mpw.startWorker();
 
 	mpw.enQueue(&MediaPlayerImpl::createPlayer, shared_from_this(), std::ref(ret));
+	printf("MediaPlayer before wait\n");
 	mSyncCv.wait(lock);
+	printf("MediaPlayer after wait\n");
 
 	if (ret != PLAYER_OK) {
 		mpw.stopWorker();
@@ -60,9 +64,11 @@ player_result_t MediaPlayerImpl::create()
 void MediaPlayerImpl::createPlayer(player_result_t &ret)
 {
 	LOG_STATE_INFO(mCurState);
-
+	struct sched_param sparam;
+	sched_getparam(getpid(), &sparam);
+	printf("vibhor MediaPlayerImpl create %d\n", sparam.sched_priority);
 	if (mCurState != PLAYER_STATE_NONE) {
-		meddbg("%s Fail : invalid state\n", __func__);
+		printf("%s Fail : invalid state\n", __func__);
 		LOG_STATE_DEBUG(mCurState);
 		ret = PLAYER_ERROR_INVALID_STATE;
 		return notifySync();
@@ -81,7 +87,7 @@ player_result_t MediaPlayerImpl::destroy()
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 	if (!mpw.isAlive()) {
-		meddbg("PlayerWorker is not alive\n");
+		printf("PlayerWorker is not alive\n");
 		return PLAYER_ERROR_NOT_ALIVE;
 	}
 
@@ -106,7 +112,7 @@ void MediaPlayerImpl::destroyPlayer(player_result_t &ret)
 	LOG_STATE_INFO(mCurState);
 
 	if (mCurState != PLAYER_STATE_IDLE && mCurState != PLAYER_STATE_CONFIGURED) {
-		meddbg("%s Fail : invalid state\n", __func__);
+		printf("%s Fail : invalid state\n", __func__);
 		LOG_STATE_DEBUG(mCurState);
 		ret = PLAYER_ERROR_INVALID_STATE;
 		return notifySync();
@@ -125,7 +131,7 @@ player_result_t MediaPlayerImpl::prepare()
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 	if (!mpw.isAlive()) {
-		meddbg("PlayerWorker is not alive\n");
+		printf("PlayerWorker is not alive\n");
 		return PLAYER_ERROR_NOT_ALIVE;
 	}
 
@@ -140,14 +146,14 @@ void MediaPlayerImpl::preparePlayer(player_result_t &ret)
 	LOG_STATE_INFO(mCurState);
 
 	if (mCurState != PLAYER_STATE_CONFIGURED) {
-		meddbg("%s Fail : invalid state\n", __func__);
+		printf("%s Fail : invalid state\n", __func__);
 		LOG_STATE_DEBUG(mCurState);
 		ret = PLAYER_ERROR_INVALID_STATE;
 		return notifySync();
 	}
 
 	if (!mInputHandler.open()) {
-		meddbg("MediaPlayer prepare fail : open fail\n");
+		printf("MediaPlayer prepare fail : open fail\n");
 		ret = PLAYER_ERROR_FILE_OPEN_FAILED;
 		return notifySync();
 	}
@@ -155,14 +161,14 @@ void MediaPlayerImpl::preparePlayer(player_result_t &ret)
 	auto source = mInputHandler.getDataSource();
 	if (set_audio_stream_out(source->getChannels(), source->getSampleRate(),
 							 source->getPcmFormat()) != AUDIO_MANAGER_SUCCESS) {
-		meddbg("MediaPlayer prepare fail : set_audio_stream_out fail\n");
+		printf("MediaPlayer prepare fail : set_audio_stream_out fail\n");
 		ret = PLAYER_ERROR_INTERNAL_OPERATION_FAILED;
 		return notifySync();
 	}
 
 	mBufSize = get_user_output_frames_to_byte(get_output_frame_count());
 	if (mBufSize < 0) {
-		meddbg("MediaPlayer prepare fail : get_output_frames_byte_size fail\n");
+		printf("MediaPlayer prepare fail : get_output_frames_byte_size fail\n");
 		ret = PLAYER_ERROR_INTERNAL_OPERATION_FAILED;
 		return notifySync();
 	}
@@ -171,7 +177,7 @@ void MediaPlayerImpl::preparePlayer(player_result_t &ret)
 
 	mBuffer = new unsigned char[mBufSize];
 	if (!mBuffer) {
-		meddbg("MediaPlayer prepare fail : mBuffer allocation fail\n");
+		printf("MediaPlayer prepare fail : mBuffer allocation fail\n");
 		if (get_errno() == ENOMEM) {
 			ret = PLAYER_ERROR_OUT_OF_MEMORY;
 		} else {
@@ -191,7 +197,7 @@ player_result_t MediaPlayerImpl::prepareAsync()
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 	if (!mpw.isAlive()) {
-		meddbg("PlayerWorker is not alive\n");
+		printf("PlayerWorker is not alive\n");
 		return PLAYER_ERROR_NOT_ALIVE;
 	}
 
@@ -205,7 +211,7 @@ void MediaPlayerImpl::prepareAsyncPlayer()
 	LOG_STATE_INFO(mCurState);
 
 	if (mCurState != PLAYER_STATE_CONFIGURED) {
-		meddbg("%s Fail : invalid state\n", __func__);
+		printf("%s Fail : invalid state\n", __func__);
 		LOG_STATE_DEBUG(mCurState);
 		notifyObserver(PLAYER_OBSERVER_COMMAND_ASYNC_PREPARED, PLAYER_ERROR_INVALID_STATE);
 		return;
@@ -214,7 +220,7 @@ void MediaPlayerImpl::prepareAsyncPlayer()
 	mCurState = PLAYER_STATE_PREPARING;
 
 	if (!mInputHandler.doStandBy()) {
-		meddbg("MediaPlayer prepare fail : doStandBy fail\n");
+		printf("MediaPlayer prepare fail : doStandBy fail\n");
 		notifyObserver(PLAYER_OBSERVER_COMMAND_ASYNC_PREPARED, PLAYER_ERROR_INTERNAL_OPERATION_FAILED);
 		return;
 	}
@@ -229,7 +235,7 @@ player_result_t MediaPlayerImpl::unprepare()
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 	if (!mpw.isAlive()) {
-		meddbg("PlayerWorker is not alive\n");
+		printf("PlayerWorker is not alive\n");
 		return PLAYER_ERROR_NOT_ALIVE;
 	}
 
@@ -244,7 +250,7 @@ void MediaPlayerImpl::unpreparePlayer(player_result_t &ret)
 	LOG_STATE_INFO(mCurState);
 
 	if (mCurState == PLAYER_STATE_NONE || mCurState == PLAYER_STATE_IDLE || mCurState == PLAYER_STATE_CONFIGURED) {
-		meddbg("%s Fail : invalid state\n", __func__);
+		printf("%s Fail : invalid state\n", __func__);
 		LOG_STATE_DEBUG(mCurState);
 		ret = PLAYER_ERROR_INVALID_STATE;
 		return notifySync();
@@ -257,7 +263,7 @@ void MediaPlayerImpl::unpreparePlayer(player_result_t &ret)
 	mBufSize = 0;
 
 	if (reset_audio_stream_out() != AUDIO_MANAGER_SUCCESS) {
-		meddbg("MediaPlayer unprepare fail : reset_audio_stream_out fail\n");
+		printf("MediaPlayer unprepare fail : reset_audio_stream_out fail\n");
 		ret = PLAYER_ERROR_INTERNAL_OPERATION_FAILED;
 		return notifySync();
 	}
@@ -275,7 +281,7 @@ player_result_t MediaPlayerImpl::start()
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 	if (!mpw.isAlive()) {
-		meddbg("PlayerWorker is not alive\n");
+		printf("PlayerWorker is not alive\n");
 		return PLAYER_ERROR_NOT_ALIVE;
 	}
 
@@ -290,7 +296,7 @@ void MediaPlayerImpl::startPlayer()
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 	if (mCurState != PLAYER_STATE_READY && mCurState != PLAYER_STATE_PAUSED) {
-		meddbg("%s Fail : invalid state\n", __func__);
+		printf("%s Fail : invalid state\n", __func__);
 		LOG_STATE_DEBUG(mCurState);
 		notifyObserver(PLAYER_OBSERVER_COMMAND_START_ERROR, PLAYER_ERROR_INVALID_STATE);
 		return;
@@ -300,7 +306,7 @@ void MediaPlayerImpl::startPlayer()
 		auto source = mInputHandler.getDataSource();
 		if (set_audio_stream_out(source->getChannels(), source->getSampleRate(),
 								 source->getPcmFormat()) != AUDIO_MANAGER_SUCCESS) {
-			meddbg("MediaPlayer startPlayer fail : set_audio_stream_out fail\n");
+			printf("MediaPlayer startPlayer fail : set_audio_stream_out fail\n");
 			notifyObserver(PLAYER_OBSERVER_COMMAND_START_ERROR, PLAYER_ERROR_INTERNAL_OPERATION_FAILED);
 			return;
 		}
@@ -327,7 +333,7 @@ player_result_t MediaPlayerImpl::stop()
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 	if (!mpw.isAlive()) {
-		meddbg("PlayerWorker is not alive\n");
+		printf("PlayerWorker is not alive\n");
 		return PLAYER_ERROR_NOT_ALIVE;
 	}
 
@@ -352,7 +358,7 @@ player_result_t MediaPlayerImpl::stopPlayback()
 {
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 	if (mCurState != PLAYER_STATE_PLAYING && mCurState != PLAYER_STATE_PAUSED) {
-		meddbg("%s Fail : invalid state\n", __func__);
+		printf("%s Fail : invalid state\n", __func__);
 		LOG_STATE_DEBUG(mCurState);
 		return PLAYER_ERROR_INVALID_STATE;
 	}
@@ -362,7 +368,7 @@ player_result_t MediaPlayerImpl::stopPlayback()
 
 	audio_manager_result_t result = stop_audio_stream_out();
 	if (result != AUDIO_MANAGER_SUCCESS) {
-		meddbg("stop_audio_stream_out failed ret : %d\n", result);
+		printf("stop_audio_stream_out failed ret : %d\n", result);
 		return PLAYER_ERROR_INTERNAL_OPERATION_FAILED;
 	}
 
@@ -376,7 +382,7 @@ player_result_t MediaPlayerImpl::pause()
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 	if (!mpw.isAlive()) {
-		meddbg("PlayerWorker is not alive\n");
+		printf("PlayerWorker is not alive\n");
 		return PLAYER_ERROR_NOT_ALIVE;
 	}
 
@@ -391,7 +397,7 @@ void MediaPlayerImpl::pausePlayer()
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 	if (mCurState != PLAYER_STATE_PLAYING) {
-		meddbg("%s Fail : invalid state\n", __func__);
+		printf("%s Fail : invalid state\n", __func__);
 		LOG_STATE_DEBUG(mCurState);
 		notifyObserver(PLAYER_OBSERVER_COMMAND_PAUSE_ERROR, PLAYER_ERROR_INVALID_STATE);
 		return;
@@ -399,7 +405,7 @@ void MediaPlayerImpl::pausePlayer()
 
 	audio_manager_result_t result = pause_audio_stream_out();
 	if (result != AUDIO_MANAGER_SUCCESS) {
-		meddbg("pause_audio_stream_in failed ret : %d\n", result);
+		printf("pause_audio_stream_in failed ret : %d\n", result);
 		notifyObserver(PLAYER_OBSERVER_COMMAND_PAUSE_ERROR, PLAYER_ERROR_INTERNAL_OPERATION_FAILED);
 		return;
 	}
@@ -421,14 +427,14 @@ player_result_t MediaPlayerImpl::getVolume(uint8_t *vol)
 	medvdbg("MediaPlayer getVolume\n");
 
 	if (vol == nullptr) {
-		meddbg("The given argument is invalid.\n");
+		printf("The given argument is invalid.\n");
 		return PLAYER_ERROR_INVALID_PARAMETER;
 	}
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 
 	if (!mpw.isAlive()) {
-		meddbg("PlayerWorker is not alive\n");
+		printf("PlayerWorker is not alive\n");
 		return PLAYER_ERROR_NOT_ALIVE;
 	}
 
@@ -442,7 +448,7 @@ void MediaPlayerImpl::getPlayerVolume(uint8_t *vol, player_result_t &ret)
 {
 	medvdbg("MediaPlayer Worker : getVolume\n");
 	if (get_output_audio_volume(vol) != AUDIO_MANAGER_SUCCESS) {
-		meddbg("get_output_audio_volume() is failed, ret = %d\n", ret);
+		printf("get_output_audio_volume() is failed, ret = %d\n", ret);
 		ret = PLAYER_ERROR_INTERNAL_OPERATION_FAILED;
 	}
 
@@ -457,14 +463,14 @@ player_result_t MediaPlayerImpl::getMaxVolume(uint8_t *vol)
 	medvdbg("MediaPlayer getMaxVolume\n");
 
 	if (vol == nullptr) {
-		meddbg("The given argument is invalid.\n");
+		printf("The given argument is invalid.\n");
 		return PLAYER_ERROR_INVALID_PARAMETER;
 	}
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 
 	if (!mpw.isAlive()) {
-		meddbg("PlayerWorker is not alive\n");
+		printf("PlayerWorker is not alive\n");
 		return PLAYER_ERROR_NOT_ALIVE;
 	}
 
@@ -478,7 +484,7 @@ void MediaPlayerImpl::getPlayerMaxVolume(uint8_t *vol, player_result_t &ret)
 {
 	medvdbg("MediaPlayer Worker : getMaxVolume\n");
 	if (get_max_audio_volume(vol) != AUDIO_MANAGER_SUCCESS) {
-		meddbg("get_max_audio_volume() is failed, ret = %d\n", ret);
+		printf("get_max_audio_volume() is failed, ret = %d\n", ret);
 		ret = PLAYER_ERROR_INTERNAL_OPERATION_FAILED;
 	}
 
@@ -494,7 +500,7 @@ player_result_t MediaPlayerImpl::setVolume(uint8_t vol)
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 	if (!mpw.isAlive()) {
-		meddbg("PlayerWorker is not alive\n");
+		printf("PlayerWorker is not alive\n");
 		return PLAYER_ERROR_NOT_ALIVE;
 	}
 
@@ -510,7 +516,7 @@ void MediaPlayerImpl::setPlayerVolume(uint8_t vol, player_result_t &ret)
 
 	audio_manager_result_t result = set_output_audio_volume(vol);
 	if (result != AUDIO_MANAGER_SUCCESS) {
-		meddbg("set_input_audio_volume failed vol : %d ret : %d\n", vol, result);
+		printf("set_input_audio_volume failed vol : %d ret : %d\n", vol, result);
 		if (result == AUDIO_MANAGER_DEVICE_NOT_SUPPORT) {
 			ret = PLAYER_ERROR_DEVICE_NOT_SUPPORTED;
 		} else {
@@ -533,7 +539,7 @@ player_result_t MediaPlayerImpl::setDataSource(std::unique_ptr<stream::InputData
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 	if (!mpw.isAlive()) {
-		meddbg("PlayerWorker is not alive\n");
+		printf("PlayerWorker is not alive\n");
 		return PLAYER_ERROR_NOT_ALIVE;
 	}
 
@@ -547,13 +553,13 @@ player_result_t MediaPlayerImpl::setDataSource(std::unique_ptr<stream::InputData
 void MediaPlayerImpl::setPlayerDataSource(std::shared_ptr<stream::InputDataSource> source, player_result_t &ret)
 {
 	if (mCurState != PLAYER_STATE_IDLE) {
-		meddbg("MediaPlayerImpl::setDataSource : mCurState != PLAYER_STATE_IDLE\n");
+		printf("MediaPlayerImpl::setDataSource : mCurState != PLAYER_STATE_IDLE\n");
 		ret = PLAYER_ERROR_INVALID_STATE;
 		return notifySync();
 	}
 
 	if (!source) {
-		meddbg("MediaPlayer setDataSource fail : invalid argument. DataSource should not be nullptr\n");
+		printf("MediaPlayer setDataSource fail : invalid argument. DataSource should not be nullptr\n");
 		ret = PLAYER_ERROR_INVALID_PARAMETER;
 		return notifySync();
 	}
@@ -572,7 +578,7 @@ player_result_t MediaPlayerImpl::setObserver(std::shared_ptr<MediaPlayerObserver
 
 	PlayerWorker &mpw = PlayerWorker::getWorker();
 	if (!mpw.isAlive()) {
-		meddbg("PlayerWorker is not alive\n");
+		printf("PlayerWorker is not alive\n");
 		return PLAYER_ERROR_NOT_ALIVE;
 	}
 
@@ -628,8 +634,11 @@ player_state_t MediaPlayerImpl::getState()
 
 void MediaPlayerImpl::notifySync()
 {
+	printf("MediaPlayer notifySync before lock\n");
 	std::unique_lock<std::mutex> lock(mCmdMtx);
+	printf("MediaPlayer notifySync after lock\n");
 	mSyncCv.notify_one();
+	printf("MediaPlayer notifySync after notify_one\n");
 }
 
 void MediaPlayerImpl::notifyObserver(player_observer_command_t cmd, ...)
@@ -702,7 +711,7 @@ void MediaPlayerImpl::notifyAsync(player_event_t event)
 	LOG_STATE_INFO(mCurState);
 
 	if (mCurState != PLAYER_STATE_PREPARING) {
-		meddbg("%s Fail : invalid state\n", __func__);
+		printf("%s Fail : invalid state\n", __func__);
 		LOG_STATE_DEBUG(mCurState);
 		return notifyObserver(PLAYER_OBSERVER_COMMAND_ASYNC_PREPARED, PLAYER_ERROR_INVALID_STATE);
 	}
@@ -714,13 +723,13 @@ void MediaPlayerImpl::notifyAsync(player_event_t event)
 		auto source = mInputHandler.getDataSource();
 		if (set_audio_stream_out(source->getChannels(), source->getSampleRate(),
 								 source->getPcmFormat()) != AUDIO_MANAGER_SUCCESS) {
-			meddbg("MediaPlayer prepare fail : set_audio_stream_out fail\n");
+			printf("MediaPlayer prepare fail : set_audio_stream_out fail\n");
 			return notifyObserver(PLAYER_OBSERVER_COMMAND_ASYNC_PREPARED, PLAYER_ERROR_INTERNAL_OPERATION_FAILED);
 		}
 
 		mBufSize = get_user_output_frames_to_byte(get_output_frame_count());
 		if (mBufSize < 0) {
-			meddbg("MediaPlayer prepare fail : get_user_output_frames_to_byte fail\n");
+			printf("MediaPlayer prepare fail : get_user_output_frames_to_byte fail\n");
 			return notifyObserver(PLAYER_OBSERVER_COMMAND_ASYNC_PREPARED, PLAYER_ERROR_INTERNAL_OPERATION_FAILED);
 		}
 
@@ -728,7 +737,7 @@ void MediaPlayerImpl::notifyAsync(player_event_t event)
 
 		mBuffer = new unsigned char[mBufSize];
 		if (!mBuffer) {
-			meddbg("MediaPlayer prepare fail : mBuffer allocation fail\n");
+			printf("MediaPlayer prepare fail : mBuffer allocation fail\n");
 			if (get_errno() == ENOMEM) {
 				return notifyObserver(PLAYER_OBSERVER_COMMAND_ASYNC_PREPARED, PLAYER_ERROR_OUT_OF_MEMORY);
 			}
@@ -755,11 +764,11 @@ void MediaPlayerImpl::playback()
 			PlayerWorker &mpw = PlayerWorker::getWorker();
 			switch (ret) {
 			case AUDIO_MANAGER_XRUN_STATE:
-				meddbg("AUDIO_MANAGER_XRUN_STATE\n");
+				printf("AUDIO_MANAGER_XRUN_STATE\n");
 				mpw.enQueue(&MediaPlayerImpl::stopPlayer, shared_from_this(), PLAYER_ERROR_INTERNAL_OPERATION_FAILED);
 				break;
 			default:
-				meddbg("audio manager error : %d\n", ret);
+				printf("audio manager error : %d\n", ret);
 				mpw.enQueue(&MediaPlayerImpl::stopPlayer, shared_from_this(), PLAYER_ERROR_INTERNAL_OPERATION_FAILED);
 				break;
 			}
@@ -772,7 +781,7 @@ void MediaPlayerImpl::playback()
 			notifyObserver(PLAYER_OBSERVER_COMMAND_FINISHIED);
 		}
 	} else {
-		meddbg("InputDatasource read error\n");
+		printf("InputDatasource read error\n");
 		notifyObserver(PLAYER_OBSERVER_COMMAND_PLAYBACK_ERROR, PLAYER_ERROR_INTERNAL_OPERATION_FAILED);
 		PlayerWorker &mpw = PlayerWorker::getWorker();
 		mpw.enQueue(&MediaPlayerImpl::stopPlayer, shared_from_this(), PLAYER_ERROR_INVALID_OPERATION);
@@ -786,14 +795,14 @@ MediaPlayerImpl::~MediaPlayerImpl()
 	if (mCurState > PLAYER_STATE_IDLE) {
 		ret = unprepare();
 		if (ret != PLAYER_OK) {
-			meddbg("~MediaPlayer fail : unprepare fail\n");
+			printf("~MediaPlayer fail : unprepare fail\n");
 		}
 	}
 
 	if (mCurState == PLAYER_STATE_IDLE) {
 		ret = destroy();
 		if (ret != PLAYER_OK) {
-			meddbg("~MediaPlayer fail : destroy fail\n");
+			printf("~MediaPlayer fail : destroy fail\n");
 		}
 	}
 }

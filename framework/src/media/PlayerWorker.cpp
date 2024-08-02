@@ -33,6 +33,7 @@ PlayerWorker::PlayerWorker() : mCurPlayer(nullptr)
 {
 	mThreadName = "PlayerWorker";
 	mStacksize = CONFIG_MEDIA_PLAYER_STACKSIZE;
+	mPriority = 150;
 }
 
 PlayerWorker::~PlayerWorker()
