@@ -63,7 +63,7 @@ THREADEXEC = TASH_EXECMD_ASYNC
 # Hello, World! C++ Example
 ASRCS		=
 CSRCS		=
-CXXSRCS		= MediaQueue.cxx
+CXXSRCS		= 
 MAINSRC		= helloxx_main.cxx
 
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
