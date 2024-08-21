@@ -1,0 +1,31 @@
+#
+# For a description of the syntax of this configuration file,
+# see kconfig-language at https://www.kernel.org/doc/Documentation/kbuild/kconfig-language.txt
+#
+
+config EXAMPLES_SOUNDPLAYER
+	bool "Sound Player"
+	default n
+	depends on HAVE_CXX
+	---help---
+		Enable Sound Player application
+
+if EXAMPLES_BIXBY
+
+config BIXBY_PLAYBACK_AUDIO
+	bool "Playback recorded data"
+	default n
+	---help---
+		Enables Playback of recorded data
+
+config BIXBY_DEBUG_INFO
+	bool "Print detailed logs"
+	default n
+	---help---
+		Enables detailed output for debugging
+
+endif #if EXAMPLES_BIXBY
+
+config USER_ENTRYPOINT
+	string
+	default "soundplayer_main" if ENTRY_SOUNDPLAYER
