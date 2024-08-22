@@ -1007,6 +1007,17 @@ bool file_header_parsing(FILE *fp, audio_type_t audioType, unsigned int *channel
 #ifdef CONFIG_CODEC_MP3
 	case AUDIO_TYPE_MP3:
 		isHeader = false;
+		unsigned char id3_header[10];
+		ret = fread(id3_header, sizeof(unsigned char), 10, fp);
+		if (strncasecmp((const char *)id3_header, "ID3", 3) == 0) {
+			meddbg("id3 found\n");
+			fseek(fp, 128, SEEK_SET);
+			break;
+		} else {
+			meddbg("id3 not found\n");
+			fseek(fp, 0, SEEK_SET);
+			break;
+		}
 		while (fread(tag, sizeof(unsigned char), 2, fp) == 2) {
 			/* 12 bits for MP3 Sync Word(the beginning of the frame) */
 			if ((tag[0] == 0xFF) && ((tag[1] & 0xF0) == 0xF0)) {
