@@ -1969,6 +1969,71 @@ audio_manager_result_t get_stream_out_policy(stream_policy_t *policy)
 	return get_stream_policy(policy, OUTPUT);
 }
 
+audio_manager_result_t get_keyword_buffer_size(uint32_t *keywordBufferSize)
+{
+	audio_io_direction_t direct = INPUT;
+	audio_card_info_t *card;
+	char path[AUDIO_DEVICE_FULL_PATH_LENGTH];
+	int fd;
+	if (direct == INPUT) {
+		if ((g_actual_audio_in_card_id < 0)) {
+			return AUDIO_MANAGER_INVALID_DEVICE;
+		}
+		card = &g_audio_in_cards[g_actual_audio_in_card_id];
+	} else {
+		if ((g_actual_audio_out_card_id < 0)) {
+			return AUDIO_MANAGER_INVALID_DEVICE;
+		}
+		card = &g_audio_out_cards[g_actual_audio_out_card_id];
+	}
+	get_card_path(path, card->card_id, card->device_id, direct);
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		meddbg("card open fail.. path : %s errno : %d\n", path, errno);
+		return AUDIO_MANAGER_OPERATION_FAIL;
+	}
+	if (ioctl(fd, AUDIOIOC_GETKDBUFSIZE, (unsigned long)keywordBufferSize) < 0) {
+		meddbg("get keyword buffer size ioctl failed. errno : %d\n", errno);
+		close(fd);
+		return AUDIO_MANAGER_OPERATION_FAIL;
+	}
+	close(fd);
+	return AUDIO_MANAGER_SUCCESS;
+}
+
+audio_manager_result_t get_keyword_data(uint8_t *buffer)
+{
+	audio_io_direction_t direct = INPUT;
+	audio_card_info_t *card;
+	struct ap_buffer_info_s buf_info;
+	char path[AUDIO_DEVICE_FULL_PATH_LENGTH];
+	int fd;
+	if (direct == INPUT) {
+		if ((g_actual_audio_in_card_id < 0)) {
+			return AUDIO_MANAGER_INVALID_DEVICE;
+		}
+		card = &g_audio_in_cards[g_actual_audio_in_card_id];
+	} else {
+		if ((g_actual_audio_out_card_id < 0)) {
+			return AUDIO_MANAGER_INVALID_DEVICE;
+		}
+		card = &g_audio_out_cards[g_actual_audio_out_card_id];
+	}
+	get_card_path(path, card->card_id, card->device_id, direct);
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		meddbg("card open fail.. path : %s errno : %d\n", path, errno);
+		return AUDIO_MANAGER_OPERATION_FAIL;
+	}
+	if (ioctl(fd, AUDIOIOC_GETKDDATA, (unsigned long)buffer) < 0) {
+		meddbg("get keyword data ioctl failed. errno : %d\n", errno);
+		close(fd);
+		return AUDIO_MANAGER_OPERATION_FAIL;
+	}
+	close(fd);
+	return AUDIO_MANAGER_SUCCESS;
+}
+
 #ifdef CONFIG_DEBUG_MEDIA_INFO
 void print_audio_card_info(audio_io_direction_t direct)
 {

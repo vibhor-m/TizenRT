@@ -20,6 +20,8 @@
 #include <debug.h>
 #include <functional>
 #include <algorithm>
+#include <mutex>
+#include <condition_variable>
 
 #include "SoftwareKeywordDetector.h"
 #include "SoftwareEndPointDetector.h"
@@ -55,17 +57,23 @@ public:
 	void addListener(std::shared_ptr<SpeechDetectorListenerInterface> listener) override;
 	bool removeListener(std::shared_ptr<SpeechDetectorListenerInterface> listener) override;
 	bool stopEndPointDetect(void) override;
+	bool getKeywordBufferSize(uint32_t *bufferSize) override;
+	bool getKeywordData(uint8_t *buffer) override;
 	static void speechResultListener(audio_device_process_unit_subtype_e event);
 
 private:
 	static speech_detect_event_type_e getSpeechDetectEvent(audio_device_process_unit_subtype_e event);
 	void resetKeywordDetectorPtr(void);
 	void resetEndPointDetectorPtr(void);
-
+	void _getKeywordBufferSize(uint32_t *bufferSize, bool &returnValue);
+	void _getKeywordData(uint8_t *bufferSize, bool &returnValue);
+	void notifySync();
 	std::shared_ptr<KeywordDetector> mKeywordDetector;
 	std::shared_ptr<EndPointDetector> mEndPointDetector;
 	/* @todo: check static keyword usage */
 	static vector<shared_ptr<SpeechDetectorListenerInterface>> mSpeechDetectorListenerList;
+	mutex mCmdMtx;
+	std::condition_variable mSyncCv;
 };
 
 vector<shared_ptr<SpeechDetectorListenerInterface>> SpeechDetectorImpl::mSpeechDetectorListenerList;
@@ -401,6 +409,62 @@ void SpeechDetectorImpl::resetEndPointDetectorPtr(void)
 {
 	mEndPointDetector = nullptr;
 }
+
+void SpeechDetectorImpl::notifySync()
+{
+	std::unique_lock<std::mutex> lock(mCmdMtx);
+	mSyncCv.notify_one();
+}
+
+bool SpeechDetectorImpl::getKeywordBufferSize(uint32_t *bufferSize)
+{
+	std::unique_lock<std::mutex> lock(mCmdMtx);
+	SpeechDetectorWorker &sdw = SpeechDetectorWorker::getWorker();
+	bool returnValue;
+	sdw.enQueue([this, bufferSize, &returnValue]() { this->_getKeywordBufferSize(bufferSize, returnValue); });
+	mSyncCv.wait(lock);
+	medvdbg("bufferSize : %d\n", *bufferSize);
+	medvdbg("Speech detector get keyword buffer size done\n");
+	return returnValue;
+}
+
+void SpeechDetectorImpl::_getKeywordBufferSize(uint32_t *bufferSize, bool &returnValue)
+{
+	returnValue = false;
+	if (mKeywordDetector == nullptr) {
+		meddbg("Keyword detector is not init\n");
+	} else {
+		if (mKeywordDetector->getKeywordBufferSize(bufferSize) == true) {
+			returnValue = true;
+		}
+	}
+	notifySync();
+}
+
+bool SpeechDetectorImpl::getKeywordData(uint8_t *buffer)
+{
+	std::unique_lock<std::mutex> lock(mCmdMtx);
+	SpeechDetectorWorker &sdw = SpeechDetectorWorker::getWorker();
+	bool returnValue;
+	sdw.enQueue([this, buffer, &returnValue]() { this->_getKeywordData(buffer, returnValue); });
+	mSyncCv.wait(lock);
+	medvdbg("Speech detector get Keyword Data done\n");
+	return returnValue;
+}
+
+void SpeechDetectorImpl::_getKeywordData(uint8_t *buffer, bool &returnValue)
+{
+	returnValue = false;
+	if (mKeywordDetector == nullptr) {
+		meddbg("Keyword detector is not init\n");
+	} else {
+		if (mKeywordDetector->getKeywordData(buffer) == true) {
+			returnValue = true;
+		}
+	}
+	notifySync();
+}
+
 } // namespace voice
 } // namespace media
 
