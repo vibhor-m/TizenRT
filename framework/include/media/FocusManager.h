@@ -74,12 +74,20 @@ public:
 	 */
 	int requestFocus(std::shared_ptr<FocusRequest> focusRequest);
 
+	/**
+	 * @brief Get current focussed stream info
+	 * @details @b #include <media/FocusManager.h>
+	 * @return return STREAM_FOCUS_STATE_ACQUIRED if stream has focus, else return STREAM_FOCUS_STATE_RELEASED
+	 */
+	stream_info_t getCurrentStreamInfo(void);
+
 private:
 	class FocusRequester
 	{
 	public:
 		FocusRequester(std::shared_ptr<stream_info_t> stream_info, std::shared_ptr<FocusChangeListener> listener);
 		bool hasSameId(std::shared_ptr<FocusRequest> focusRequest);
+		stream_info_t getStreamInfo(void);
 		void notify(int focusChange);
 
 		static bool compare(const FocusRequester a, const FocusRequester b);
