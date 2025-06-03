@@ -239,7 +239,8 @@ static void aifw_test_deinit(void)
 static void sine_collectRawDataListener(void)
 {
 	memset(gSensorValues, '\0', gSensorValueCount * sizeof(float));
-	AIFW_RESULT result = readCSVData(gHandle, gSensorValues);
+	// AIFW_RESULT result = readCSVData(gHandle, gSensorValues);
+	AIFW_RESULT result = AIFW_OK;
 	if (result == AIFW_OK) {
 		int res = ai_helper_push_data(gSineWaveCode, (void *)gSensorValues, gSensorValueCount);
 		if (res == 0) {
@@ -278,6 +279,14 @@ static void sine_inferenceResultListener(AIFW_RESULT res, void *values, uint16_t
 
 int aifw_test_main(int argc, char *argv[])
 {
+	gSensorValueCount = 44160;
+	gSensorValues = (float *)malloc(gSensorValueCount * sizeof(float));
+	if (!gSensorValues) {
+		AIFW_LOGE("Memory allocation failed for sensor values buffer");
+		return 0;
+	}
+	AIFW_LOGE("gSensorValues allocation OK");
+#if 0
 	/* Initialize CSV data source for input raw data */
 	AIFW_RESULT res = csvInit(&gHandle, "/mnt/AI/SineWave_packet.csv", FLOAT32, false);
 	if (res != AIFW_OK) {
@@ -313,6 +322,7 @@ int aifw_test_main(int argc, char *argv[])
 		goto cleanup;
 	}
 	AIFW_LOGV("Result data csv initialization OK");
+#endif
 
 	if (ai_helper_init(1) != 0) {
 		AIFW_LOGE("AI helper init failed");
@@ -320,6 +330,7 @@ int aifw_test_main(int argc, char *argv[])
 	}
 	if (ai_helper_load_model(gSineWaveCode, sine_inferenceResultListener, sine_collectRawDataListener) != 0) {
 		AIFW_LOGE("Load model failed");
+		sleep(1);
 		goto cleanup;
 	}
 	if (ai_helper_start(gSineWaveCode) != 0) {

@@ -296,7 +296,7 @@ AIFW_RESULT AIModel::fillModelAttribute(const AIModelAttribute &modelAttribute)
 
 AIFW_RESULT AIModel::loadModel(const char *scriptPath)
 {
-	AIFW_LOGV("Lets try loading file based model");
+	AIFW_LOGE("Lets try loading file based model");
 	if (!scriptPath) {
 		AIFW_LOGE("Script path is null.");
 		return AIFW_INVALID_ARG;
@@ -306,12 +306,13 @@ AIFW_RESULT AIModel::loadModel(const char *scriptPath)
 		AIFW_LOGE("model attributes fetch failed. error: %d", res);
 		return res;
 	}
-	AIFW_LOGV("json file parsed, filename: %s", scriptPath);
+	AIFW_LOGE("json file parsed, filename: %s", scriptPath);
 	const char *file = mModelAttribute.modelPath;
 	if (strlen(file) > 0) {
 		res = mAIEngine->loadModel(file);
 		if (res != AIFW_OK) {
 			AIFW_LOGE("Load model failed, model file: %s, error: %d", file, res);
+			sleep(1);
 			return res;
 		}
 		AIFW_LOGV("model load done, model file: %s", file);
@@ -508,6 +509,8 @@ AIFW_RESULT AIModel::invoke(void)
 		}
 		printf("\n");
 #endif
+		AIFW_LOGE("calling invoke");
+
 		invokeResult = (float *)mAIEngine->invoke(mInvokeInput);
 		if (!invokeResult) {
 			AIFW_LOGE("Engine Invoke failed.");

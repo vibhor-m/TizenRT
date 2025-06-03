@@ -73,6 +73,8 @@ AIFW_RESULT ONERTM::_loadModel(void)
 	// TODO: support multiple input/outputs
 	this->mModelInputSize = this->mInterpreter->getInputSizeAt(0);
 	this->mModelOutputSize = this->mInterpreter->getOutputSizeAt(0);
+	AIFW_LOGE("number of inputs: %d \n", this->mModelInputSize);
+	AIFW_LOGE("number of outputs: %d \n", this->mModelOutputSize);
 #else
 	this->mInputSetCount = mInterpreter->getNumberOfInputs();
 	this->mOutputSetCount = mInterpreter->getNumberOfOutputs();
@@ -92,24 +94,25 @@ AIFW_RESULT ONERTM::_loadModel(void)
 	for (uint16_t i = 0; i < this->mOutputSetCount; i++) {
 		this->mOutputSizeList[i] = this->mInterpreter->getOutputSizeAt(i);
 	}
-	AIFW_LOGD("number of inputs: %d \n", this->mInputSetCount);
+	AIFW_LOGE("number of inputs: %d \n", this->mInputSetCount);
 	for (uint16_t i = 0; i < this->mInputSetCount; i++) {
-		AIFW_LOGD("Model Input Size [%d] =%d\n", i, this->mInputSizeList[i]);
+		AIFW_LOGE("Model Input Size [%d] =%d\n", i, this->mInputSizeList[i]);
 	}
-	AIFW_LOGD("number of outputs: %d \n", this->mOutputSetCount);
+	AIFW_LOGE("number of outputs: %d \n", this->mOutputSetCount);
 	for (uint16_t i = 0; i < this->mOutputSetCount; i++) {
-		AIFW_LOGD("Model Output Size [%d] = %d\n", i, this->mOutputSizeList[i]);
+		AIFW_LOGE("Model Output Size [%d] = %d\n", i, this->mOutputSizeList[i]);
 	}
 #endif /* CONFIG_AIFW_MULTI_INOUT_SUPPORT */
 
-	AIFW_LOGD("Interpreter initialization success.");
+	AIFW_LOGE("Interpreter initialization success.");
+	sleep(1);
 
 	return AIFW_OK;
 }
 
 AIFW_RESULT ONERTM::loadModel(const char *file)
 {
-	AIFW_LOGD("GetModel from File:%s", file);
+	AIFW_LOGE("GetModel from File:%s", file);
 	FILE *fp = fopen(file, "r");
 	if (fp == NULL) {
 		AIFW_LOGE("File %s open operation failed errno : %d", file, errno);
@@ -123,11 +126,13 @@ AIFW_RESULT ONERTM::loadModel(const char *file)
 		AIFW_LOGE("File %s size read as %d is invalid, errno %d", file, size, errno);
 		return AIFW_ERROR_FILE_ACCESS;
 	}
-	AIFW_LOGD("Model File Size: %d", size);
+	AIFW_LOGE("Model File Size: %d", size);
+	sleep(1);
 	this->mBuf = (char *)malloc(size);
 	if (!this->mBuf) {
 		fclose(fp);
 		AIFW_LOGE("Memory not enough to allocate %d", size);
+		sleep(1);
 		return AIFW_NO_MEM;
 	}
 	fread(this->mBuf, 1, size, fp);
@@ -169,7 +174,11 @@ void *ONERTM::invoke(void *inputData)
 		reinterpret_cast<float *>(data)[i] = value[i];
 	}
 	AIFW_START_TIMER
+	AIFW_LOGE("calling run");
+	sleep(1);
 	this->mInterpreter->run(*this->mConfig);
+	AIFW_LOGE("returned run");
+	sleep(1);
 	AIFW_END_TIMER
 
 	return this->mInterpreter->getOutputDataAt(0);

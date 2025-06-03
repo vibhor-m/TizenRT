@@ -70,14 +70,18 @@ AIFW_RESULT SineWaveProcessHandler::preProcessData(std::shared_ptr<aifw::AIDataB
 			return AIFW_NO_MEM;
 		}
 	}
+#if 0
 	/* Read latest row from AI data buffer. At this time the latest row includes only parsed raw data and does not include invoke result. */
 	AIFW_RESULT res = buffer->readData(mRawData, 0, modelAttribute->rawDataCount, 0);
 	if (res != AIFW_OK) {
 		AIFW_LOGE("Reading Data from the buffer failed. ret: %d", res);
 		return res;
 	}
+#endif
 	/* Pre processing can be done at this point e.g. data can be normalized using mean and standard deviation values specific to model. Fnally pre-processed values, ready for inference is to be copied in invokeInput buffer */
-	memcpy(invokeInput, mRawData, modelAttribute->invokeInputCount * sizeof(float));
+	memset(invokeInput, '\0', modelAttribute->invokeInputCount * sizeof(float));
+	AIFW_LOGE("invokeInputCount %d", modelAttribute->invokeInputCount);
+	sleep(1);
 	return AIFW_OK;
 }
 

@@ -37,7 +37,7 @@ struct Model_Attributes {
 	const char *scriptPath;
 };
 static const struct Model_Attributes gModelCodeMap[] = {
-	{gSineWaveCode, "/mnt/AI/SineWaveAIModel.json"}};
+	{gSineWaveCode, "/res/MMW.json"}};
 
 static uint16_t gModelCount = sizeof(gModelCodeMap) / sizeof(struct Model_Attributes);
 #else
@@ -71,9 +71,11 @@ AIFW_RESULT SineWaveInferenceHandler::prepare(void)
 	}
 	AIFW_RESULT result;
 #ifdef CONFIG_PRODUCT_AI_MODEL_FILE_SUPPORT
+	AIFW_LOGE("json %s", gModelCodeMap[0].scriptPath);
 	result = mSWModel->loadModel(gModelCodeMap[0].scriptPath);
 	if (result != AIFW_OK) {
 		AIFW_LOGE("Sine wave load failed");
+		sleep(1);
 		return result;
 	}
 #else

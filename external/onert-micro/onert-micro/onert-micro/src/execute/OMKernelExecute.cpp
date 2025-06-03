@@ -75,9 +75,9 @@ OMStatus OMKernelExecute::runForward(OMExecuteArgs &execute_args,
       return status;
 
     status = execute_func(execute_args);
-
+    
     assert(status == Ok);
-
+    printf("vibhor i %d\n", i);
     if (status != Ok)
       return status;
 
