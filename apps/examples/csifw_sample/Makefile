@@ -62,6 +62,7 @@ THREADEXEC = TASH_EXECMD_ASYNC
 
 # C++ Test Example
 MAINSRC		= csifw_sample.c
+CSRCS 		= csifw_ping_generator.c
 
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
 COBJS		= $(CSRCS:.c=$(OBJEXT))

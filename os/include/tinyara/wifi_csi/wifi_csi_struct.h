@@ -44,6 +44,7 @@ typedef struct {
 	csi_config_action_t config_action;
 	csi_config_type_t config_type;
 	unsigned int interval;
+	csifw_mac_info mac_info;
 } csi_config_args_t;
 
 #ifdef __cplusplus /* If this is a C++ compiler, end C linkage */

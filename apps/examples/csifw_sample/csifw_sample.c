@@ -30,12 +30,15 @@
 #include <tinyara/wifi_csi/wifi_csi_struct.h>
 #include <tinyara/wifi_csi/wifi_csi.h>
 #include <semaphore.h>
+#include "csifw_ping_generator.h"
 
 pthread_t csi_data_receiver_th;
 mqd_t mq_handle;
 unsigned int data_receiver_fd;
 unsigned char *get_data_buffptr;
+unsigned char *get_mac_buffptr;
 csi_config_type_t configuration_type;
+csifw_mac_info mac_info;
 int collection_interval_ms;
 bool collection_started = false;
 bool csi_collection_flag = false;
@@ -49,10 +52,12 @@ int csi_packet_receiver_set_csi_config(csi_config_action_t config_action)
 {
 	int fd, ret = 1;
 	OPEN_DRIVER(fd);
+	printf("csi_packet_receiver_set_csi_config (fd=%d)\n", fd);
 	csi_config_args_t config_args;
 	config_args.config_action = config_action;
 	config_args.config_type = configuration_type;
 	config_args.interval = collection_interval_ms;
+	memcpy(config_args.mac_info.mac_addr, mac_info.mac_addr, 6);
 	int res = ioctl(fd, CSIIOC_SET_CONFIG, (unsigned long)&config_args);
 	if (res < OK) {
 		printf("Failed to set CSI config (action: %d, type: %d, interval: %d) - errno: %d (%s)", config_action, config_args.config_type, config_args.interval, get_errno(), strerror(get_errno()));
@@ -113,7 +118,7 @@ static void *dataReceiverThread(void *vargp)
 				break;
 
 			case CSI_MSG_ERROR:
-				printf("CSI_MSG_ERROR received");
+				printf("CSI_MSG_ERROR received\n");
 				break;
 
 			default:
@@ -128,25 +133,32 @@ static void *dataReceiverThread(void *vargp)
 
 int csi_packet_receiver_start_collect(void)
 {
-	int res = csi_packet_receiver_set_csi_config(CSI_CONFIG_ENABLE);
+	
+    if(!get_data_buffptr)
+    {
+        get_data_buffptr = (unsigned char *)malloc(CSIFW_MAX_RAW_BUFF_LEN);
+        if (!get_data_buffptr) {
+            printf("Buffer allocation Fail.");
+            return 0;
+        }
+    }
+    
+    printf("Get data buffer allocation done, size: %d\n", CSIFW_MAX_RAW_BUFF_LEN);
+
+    int res = csi_packet_receiver_set_csi_config(CSI_CONFIG_ENABLE);
 	if (res != 0) {
 		printf("config set success.\n");
 	} else {
 		printf("config set fail.\n");
 	}
 
-    get_data_buffptr = (unsigned char *)malloc(CSIFW_MAX_RAW_BUFF_LEN);
-    if (!get_data_buffptr) {
-        printf("Buffer allocation Fail.");
-        return 0;
-    }
-    printf("Get data buffer allocation done, size: %d\n", CSIFW_MAX_RAW_BUFF_LEN);
-
 	//create receiver thread
 	pthread_attr_t recv_th_attr;
 	if (pthread_attr_init(&recv_th_attr) != 0) {
 		printf("Failed to initialize receiver thread attributes - errno: %d (%s)", get_errno(), strerror(get_errno()));
 		csi_packet_receiver_set_csi_config(CSI_CONFIG_DISABLE);
+        free(get_data_buffptr);
+		get_data_buffptr = NULL;
 		return 0;
 	}
 
@@ -203,12 +215,18 @@ int csi_packet_receiver_initialize(void)
 
 void csi_packet_receiver_stop_collect()
 {
-	csi_packet_receiver_set_csi_config(CSI_CONFIG_DISABLE);
 	if (get_data_buffptr) {
 		free(get_data_buffptr);
 		get_data_buffptr = NULL;
 	}
-	printf("CSI Data Collection Stopped");
+    if (mq_handle != (mqd_t) ERROR) {
+		printf("Sending dummy message to close blocking mq");
+		struct wifi_csi_msg_s msg;
+		msg.msgId = CSI_MSG_ERROR;
+		mq_send(mq_handle, (FAR const char *)&msg, sizeof(msg), MQ_PRIO_MAX);
+	} else {
+		printf("Failed to close blocking mq as MQ_Discriptor is Invalid");
+	}
 	return;
 }
 
@@ -229,6 +247,24 @@ int csi_packet_receiver_cleanup(void)
 	return 1;
 }
 
+int csi_packet_receiver_get_mac_addr()
+{
+	if (data_receiver_fd < 0) {
+        printf("Invalid fd in get_mac_addr: %d\n", data_receiver_fd);
+        return -1;
+    }
+	int ret = ioctl(data_receiver_fd, CSIIOC_GET_MAC_ADDR, (unsigned long)(&mac_info));
+	if (ret < OK) {
+		printf("IOCTL : CSIIOC_GET_MAC_ADDR Failed errno: %d (%s)", get_errno(), strerror(get_errno()));
+		return 0;
+	}
+	printf("MAC address from driver: [%02x:%02x:%02x:%02x:%02x:%02x]", 
+		mac_info.mac_addr[0], mac_info.mac_addr[1], 
+		mac_info.mac_addr[2], mac_info.mac_addr[3], 
+		mac_info.mac_addr[4], mac_info.mac_addr[5]);
+	return 1;
+}
+
 static int start_csi_collection()
 {
     csi_collection_flag = true;
@@ -237,19 +273,32 @@ static int start_csi_collection()
 		printf("Failed to open CSI data file: /mnt/csi_data.bin, errno: %d (%s)\n", get_errno(), strerror(get_errno()));
 	}
     csi_packet_receiver_initialize();
+	csi_packet_receiver_get_mac_addr();
     csi_packet_receiver_start_collect();
+	if(configuration_type == HT_CSI_DATA)
+	{
+		csi_ping_generator_initialize(collection_interval_ms);
+    	ping_generator_start();
+	}
     return 0;
 }
 
 static int stop_csi_collection(void)
 {
     csi_collection_flag = false;
+    csi_packet_receiver_stop_collect();
 	csi_packet_receiver_cleanup();
 	if (csi_data_file_fd >= 0) {
 		close(csi_data_file_fd);
 		csi_data_file_fd = -1;
 		printf("CSI data file closed\n");
 	}
+	if(configuration_type == HT_CSI_DATA)
+	{
+		ping_generator_stop();
+    	csi_ping_generator_cleanup();
+	}
+    
     return 0;
 }
 

@@ -887,10 +887,9 @@ trwifi_result_e bk_wifi_netmgr_init(struct netdev *dev)
         return TRWIFI_FAIL;
     }
 
-    #if CONFIG_BK_WIFI_CSI_ADAPTER
     extern int bk_wifi_csi_init(int minor);
     bk_wifi_csi_init(0);
-    #endif
+
 
     g_netmgr_init = true;
     return TRWIFI_SUCCESS;

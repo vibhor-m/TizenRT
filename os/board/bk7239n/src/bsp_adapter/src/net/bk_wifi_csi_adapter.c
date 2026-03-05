@@ -31,7 +31,6 @@
 #include <components/log.h>
 
 //wifi csi
-#if CONFIG_BK_WIFI_CSI_ADAPTER
 #include <tinyara/wifi_csi/wifi_csi.h>
 
 #define BK_MAX_CSI_BUFF_LEN (536)
@@ -128,6 +127,31 @@ static void bk_wifi_csi_report_data_transfer(uint32_t buf,uint8_t *csi_buf, uint
 {
 	struct wifi_csi_info_t *buf_info = (struct wifi_csi_info_t *)buf;
 	int len_offset = sizeof(struct wifi_rx_pkt_t);
+
+	printf("CSI Number of sc[%d]\n", buf_info->csi_info[0].sc_num);
+    printf("CSI header info band[%d] rate[%d] pkt_len[%d] cbw[%d]\n", 
+           buf_info->rx_ctrl.band, 
+           buf_info->rx_ctrl.rate, 
+           buf_info->rx_ctrl.pkt_len, 
+           buf_info->rx_ctrl.cbw);
+    
+    // Print Source MAC address
+    printf("CSI Source MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+           buf_info->rx_ctrl.src_mac[0],
+           buf_info->rx_ctrl.src_mac[1],
+           buf_info->rx_ctrl.src_mac[2],
+           buf_info->rx_ctrl.src_mac[3],
+           buf_info->rx_ctrl.src_mac[4],
+           buf_info->rx_ctrl.src_mac[5]);
+    
+    // Print Destination MAC address
+    printf("CSI Destination MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+           buf_info->rx_ctrl.dst_mac[0],
+           buf_info->rx_ctrl.dst_mac[1],
+           buf_info->rx_ctrl.dst_mac[2],
+           buf_info->rx_ctrl.dst_mac[3],
+           buf_info->rx_ctrl.dst_mac[4],
+           buf_info->rx_ctrl.dst_mac[5]);
 
 	// NON_HT_CSI_DATA
 	if(g_bk_drv->config_param.filter_config.proto_type_bmp == 0x1)
@@ -226,7 +250,9 @@ static int bk_wifi_csi_set_config(unsigned long arg)
 	case HT_CSI_DATA:
 		g_bk_drv->config_param.filter_config.proto_type_bmp = 0x2;
 		g_bk_drv->config_param.filter_config.cbw_bmp = 0x1;
-		g_bk_drv->config_param.filter_config.filter_mac_addr_type = 0;
+		g_bk_drv->config_param.filter_config.filter_mac_addr_type = 3;
+		g_bk_drv->config_param.filter_config.filter_src_mac_num = 1;
+		memcpy(g_bk_drv->config_param.filter_config.filter_src_mac, config_args->mac_info.mac_addr, 6);
 		g_bk_drv->accuracy = 0;
 		break;
 	
@@ -240,7 +266,9 @@ static int bk_wifi_csi_set_config(unsigned long arg)
 	case NON_HT_CSI_DATA:
 		g_bk_drv->config_param.filter_config.proto_type_bmp = 0x1;
 		g_bk_drv->config_param.filter_config.cbw_bmp = 0x1;
-		g_bk_drv->config_param.filter_config.filter_mac_addr_type = 0;
+		g_bk_drv->config_param.filter_config.filter_mac_addr_type = 3;
+		g_bk_drv->config_param.filter_config.filter_src_mac_num = 1;
+		memcpy(g_bk_drv->config_param.filter_config.filter_src_mac, config_args->mac_info.mac_addr, 6);
 		g_bk_drv->accuracy = 0;
 		break;
 
@@ -519,12 +547,10 @@ FAR struct wifi_csi_lowerhalf_s *bk_wifi_csi_initialize(void)
 	}
 	g_bk_drv->dev.ops = &g_wificsiops;
 
-	if(g_bk_drv->devsem == NULL) {
-		err = rtos_init_semaphore(&g_bk_drv->devsem,1);
-		if(err != kNoErr){
-			csidbg("[BK] csi semaphore init failed!\r\n");
-			return NULL;
-		}
+	err = rtos_init_semaphore(&g_bk_drv->devsem,1);
+	if(err != kNoErr){
+		csidbg("[BK] csi semaphore init failed!\r\n");
+		return NULL;
 	}
 
 	return &g_bk_drv->dev;
@@ -578,4 +604,3 @@ int bk_wifi_csi_init(int minor)
 	return ret;
 }
 
-#endif
