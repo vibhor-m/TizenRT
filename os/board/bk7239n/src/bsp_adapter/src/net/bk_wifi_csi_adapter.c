@@ -30,8 +30,7 @@
 #include <bk_wifi.h>
 #include <components/log.h>
 
-//wifi csi
-#if CONFIG_BK_WIFI_CSI_ADAPTER
+
 #include <tinyara/wifi_csi/wifi_csi.h>
 
 #define BK_MAX_CSI_BUFF_LEN (536)
@@ -157,6 +156,32 @@ static void bk_wifi_csi_report_data_transfer(uint32_t buf_len, uint32_t buf,uint
 		csidbg("ERROR: buf_len is too small\n");
 		return;
 	}
+
+	dbg("CSI Number of sc[%d]\n", buf_info->csi_info[0].sc_num);
+    dbg("CSI header info band[%d] rate[%d] pkt_len[%d] cbw[%d] pri_chan[%d]\n", 
+           buf_info->rx_ctrl.band, 
+           buf_info->rx_ctrl.rate, 
+           buf_info->rx_ctrl.pkt_len, 
+           buf_info->rx_ctrl.cbw,
+		   buf_info->rx_ctrl.pri_chan );
+    
+    // Print Source MAC address
+    dbg("CSI Source MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+           buf_info->rx_ctrl.src_mac[0],
+           buf_info->rx_ctrl.src_mac[1],
+           buf_info->rx_ctrl.src_mac[2],
+           buf_info->rx_ctrl.src_mac[3],
+           buf_info->rx_ctrl.src_mac[4],
+           buf_info->rx_ctrl.src_mac[5]);
+    
+    // Print Destination MAC address
+    dbg("CSI Destination MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+           buf_info->rx_ctrl.dst_mac[0],
+           buf_info->rx_ctrl.dst_mac[1],
+           buf_info->rx_ctrl.dst_mac[2],
+           buf_info->rx_ctrl.dst_mac[3],
+           buf_info->rx_ctrl.dst_mac[4],
+           buf_info->rx_ctrl.dst_mac[5]);
 
 	// NON_HT_CSI_DATA
 	if(g_bk_drv->config_param.filter_config.proto_type_bmp == 0x1)
@@ -676,6 +701,12 @@ static int bk_wifi_csi_getcsidata(unsigned char *buffer, size_t buflen) {
 	bk_wifi_csi_givesem();
 	return len;
 }
+void diable_HE_snd_VHT(void)
+{
+	dbg("Disabling HE and VHE Capbilities");
+	bk_wifi_capa_config(WIFI_CAPA_ID_VHT_EN, 0);
+	bk_wifi_capa_config(WIFI_CAPA_ID_HE_EN, 0);
+}
 
 FAR struct wifi_csi_lowerhalf_s *bk_wifi_csi_initialize(void)
 {
@@ -697,6 +728,7 @@ FAR struct wifi_csi_lowerhalf_s *bk_wifi_csi_initialize(void)
 		return NULL;
 	}
 	bk_wifi_csi_givesem();
+	diable_HE_snd_VHT();
 
 	return &g_bk_drv->dev;
 }
@@ -749,5 +781,3 @@ int bk_wifi_csi_init(int minor)
 	}
 	return ret;
 }
-
-#endif

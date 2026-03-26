@@ -18,22 +18,14 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-#define CONFIG_WIFICSI_CUSTOM_DEV_PATH "/dev/wificsi"
+/**
+ * @brief Sets the Ping sending interval for the CSI service.
+ *
+ * @param[in] interval Data collection interval in ms.
+ *
+ */
+int csi_ping_generator_initialize(int collection_interval_ms);
+int csi_ping_generator_cleanup(void);
+int ping_generator_start(void);
+int ping_generator_stop(void);
 
-#define CLOSE_DRIVER(_FD) close(_FD);
-#define OPEN_DRIVER(_FD) \
-	_FD = open(CONFIG_WIFICSI_CUSTOM_DEV_PATH, O_RDONLY);\
-	if (_FD < 0) {\
-		printf("Failed to open device path : %s errno : %d", CONFIG_WIFICSI_CUSTOM_DEV_PATH, get_errno());\
-		return -1;\
-	}\
-
-int csifw_sample_main(int argc, char **args);
-int csifw_sample_app_init(int argc, char **args);
-
-#ifdef __cplusplus
-}
-#endif
