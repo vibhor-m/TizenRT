@@ -258,7 +258,7 @@ typedef struct
 
             uint8_t *tmp_buffer;         /**< Temporary buffer pointer */
             uint32_t tmp_buffer_len;     /**< Temporary buffer length */
-            uint8_t service_index;       /**< Service index */
+            void* service_p;             /**< Service point */
             uint8_t att_index;           /**< Attribute index */
         } attr_cb_evt;
 
@@ -272,7 +272,7 @@ typedef struct
             uint8_t *buffer;             /**< Buffer pointer */
             uint16_t buffer_len;         /**< Current buffer length */
             uint16_t buffer_max_len;     /**< Maximum buffer length */
-            uint8_t service_index;       /**< Service index */
+            void* service_p;             /**< Service point */
             uint8_t att_index;           /**< Attribute index */
             void *pm;                    /**< Pointer to profile manager */
         } set_server_buffer_cmd;
@@ -628,8 +628,9 @@ typedef struct
 #define ADV_DIRECT_IND (REPORT_INFO_DIR_ADV_BIT | REPORT_INFO_CONN_ADV_BIT | REPORT_INFO_COMPLETE_BIT | REPORT_TYPE_ADV_LEG)
 #define ADV_SCAN_IND (REPORT_INFO_SCAN_ADV_BIT | REPORT_INFO_COMPLETE_BIT | REPORT_TYPE_ADV_LEG)
 #define ADV_NONCONN_IND (REPORT_INFO_COMPLETE_BIT | REPORT_TYPE_ADV_LEG)
-#define SCAN_RSP (REPORT_INFO_COMPLETE_BIT | REPORT_TYPE_SCAN_RSP_LEG)
+#define SCAN_RSP (REPORT_TYPE_SCAN_RSP_LEG)
 
+#define NOTIFY_ASYNC_MAX_COUNT 40
 /**
  * @brief Structure for storing the BLE environment at the HAL level.
  *
