@@ -271,6 +271,7 @@ static void bk_wifi_csi_report_timeout_handler(void *arg)
 	if(g_bk_csi_rept_count == 0)
 	{
 		rtos_stop_timer(&g_bk_drv->csi_report_timer);
+		g_bk_csi_report_timre_running = false;
 		bk_wifi_csi_givesem();
 		return;
 	}
@@ -358,6 +359,9 @@ static bool bk_wifi_csi_data_buffer_create(void)
 	
 	g_bk_csi_rept_read = 0;
 	g_bk_csi_rept_write = 0;
+	g_bk_csi_rept_count = 0;
+	g_bk_csi_report_timre_running = false;
+	g_bk_csi_last_report_time = 0;
 	return true;
 }
 static void bk_wifi_csi_data_buffer_free(void)
@@ -591,20 +595,25 @@ void bk_wifi_csi_rx_cb(struct wifi_csi_info_t *info)
 	current_time = rtos_get_time();
 
 	//First packet OR empty ring buffer:copy and report immediately.
-	if ((g_bk_csi_last_report_time == 0) || (g_bk_csi_rept_count == 0)) {
+	if(g_bk_csi_last_report_time == 0)
+	{
+		should_report = true;
+	}
+	else if(g_bk_csi_report_timre_running == false && g_bk_csi_rept_count == 0)
+	{
 		should_report = true;
 	}
 
 	is_buffer_full = (g_bk_csi_rept_count == BK_CSI_REPT_DATA_MAX_NUM);
 
-	if (is_buffer_full) 
+	if(is_buffer_full) 
 	{
 		dropped_reported = g_bk_csi_rept_data[g_bk_csi_rept_read].data_reported_flag ? true : false;
 	}
 
 	wr_ptr = &g_bk_csi_rept_data[g_bk_csi_rept_write];
 
-	if (bk_wifi_csi_info_copy(wr_ptr->data_store_buff_ptr, info)) 
+	if(bk_wifi_csi_info_copy(wr_ptr->data_store_buff_ptr, info)) 
 	{
 		if (is_buffer_full) {
 			g_bk_csi_rept_read = (g_bk_csi_rept_read + 1) % BK_CSI_REPT_DATA_MAX_NUM;
